@@ -1,7 +1,7 @@
 const babel = require('gulp-babel');
 const gulp = require('gulp');
 const path = require('path');
-const rimraf = require('rimraf');
+const fs = require('fs-extra');
 const source = require('vinyl-source-stream');
 const vinylBuffer = require('vinyl-buffer');
 const babelConfig = require('./babel.config');
@@ -14,7 +14,8 @@ const extTypes = ['ts', 'json', 'axml'];
 babelConfig.presets.unshift(require.resolve('@babel/preset-typescript'));
 
 gulp.task('clean', function(done) {
-  rimraf(dist, done);
+  fs.removeSync(dist);
+  done && done();
 });
 
 gulp.task('ts', () => {

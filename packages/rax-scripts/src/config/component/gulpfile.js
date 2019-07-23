@@ -4,7 +4,7 @@ const colors = require('chalk');
 const gulp = require('gulp');
 const ts = require('gulp-typescript');
 const babel = require('gulp-babel');
-const rimraf = require('rimraf');
+const fs = require('fs-extra');
 
 const babelConfig = require('./babel.config');
 const pathConfig = require('../path.config');
@@ -23,9 +23,9 @@ const tsProject = ts.createProject('tsconfig.json', {
 });
 
 gulp.task('clean', function(done) {
-  rimraf(pathConfig.appDist, function() {
-    rimraf(BUILD_DIR, done);
-  });
+  fs.removeSync(pathConfig.appDist);
+  fs.removeSync(BUILD_DIR);
+  done && done();
 });
 
 // for js/jsx.

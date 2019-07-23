@@ -11,8 +11,8 @@ process.on('unhandledRejection', err => {
   throw err;
 });
 
-const colors = require('chalk');
-const rimraf = require('rimraf');
+const fs = require('fs-extra');
+const chalk = require('chalk');
 
 const createWebpackCompiler = require('./utils/createWebpackCompiler');
 const pathConfig = require('./config/path.config');
@@ -21,23 +21,10 @@ const jsx2mp = require('jsx2mp');
 
 const { getWebpackConfig } = require('./config/');
 
-function buildCompiler(config) {
-  const compiler = createWebpackCompiler(config);
-
-  compiler.run((err) => {
-    if (err) {
-      throw err;
-    }
-
-    console.log(colors.green('\nBuild successfully.'));
-    process.exit();
-  });
-}
-
 const MINIAPP = 'miniapp';
 const COMPONENT = 'component';
 
-module.exports = function build(type = 'webapp') {
+module.exports = function(type = 'webapp') {
   if (type === MINIAPP) {
     jsx2mp(pathConfig.appDirectory, pathConfig.appDist, {
       enableWatch: false,
@@ -46,19 +33,20 @@ module.exports = function build(type = 'webapp') {
       entry: pathConfig.universalAppEntry,
     });
   } else if (type === COMPONENT) { // build component
-    rimraf(pathConfig.appDist, function(err) {
+    fs.removeSync(pathConfig.appDist);
+    componentCompiler();
+  } else { // build app
+    fs.removeSync(pathConfig.appBuild);
+    const config = getWebpackConfig(type);
+    const compiler = createWebpackCompiler(config);
+
+    compiler.run((err) => {
       if (err) {
         throw err;
       }
-      componentCompiler();
-    });
-  } else {
-    rimraf(pathConfig.appBuild, (err) => {
-      if (err) {
-        throw err;
-      }
-      const config = getWebpackConfig(type);
-      buildCompiler(config);
+
+      console.log(chalk.green('\nBuild successfully.'));
+      process.exit();
     });
   }
 };
