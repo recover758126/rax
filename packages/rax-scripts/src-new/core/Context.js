@@ -1,5 +1,6 @@
 const _ = require('lodash');
 const path = require('path');
+const autoBind = require('auto-bind');
 const fs = require('fs-extra');
 const deepmerge = require('deepmerge');
 
@@ -12,7 +13,14 @@ const APP_CONFIG_FILE = 'app.json';
 const USER_CONFIG_FILE = 'build.json';
 
 module.exports = class Context {
-  constructor({ command, rootDir = process.cwd(), args = {} }) {
+  constructor({
+    command,
+    custom = {},
+    rootDir = process.cwd(),
+    args = {} }
+  ) {
+    autoBind(this);
+
     this.command = command;
     this.commandArgs = args;
     this.rootDir = rootDir;
@@ -20,8 +28,9 @@ module.exports = class Context {
     // app.json
     this.appConfig = this.getAppConfig();
 
-    this.userConfig = this.getUserConfig();
-    this.plugins = this.getPlugins();
+    this.customConfig = custom;
+    this.userConfig = this.getUserConfig(custom);
+    this.plugins = this.getPlugins(custom);
   }
 
   getAppConfig() {
@@ -41,7 +50,7 @@ module.exports = class Context {
     return appConfig;
   }
 
-  getUserConfig() {
+  getUserConfig(custom) {
     const { config } = this.commandArgs;
     let configPath = '';
     if (config) {
@@ -60,12 +69,25 @@ module.exports = class Context {
       }
     }
 
-    const mergedConfig = deepmerge(defaultUserConfig, userConfig);
+    let mergedConfig = defaultUserConfig;
+
+    if (custom.config) {
+      mergedConfig = deepmerge(mergedConfig, custom.config, {
+        // not merge plugins
+        customMerge: (key) => {
+          if (key === 'plugins') {
+            return (a) => a;
+          }
+        }
+      });
+    }
+
+    mergedConfig = deepmerge(mergedConfig, userConfig);
 
     return mergedConfig;
   }
 
-  getPlugins() {
+  getPlugins(custom) {
     const builtInPlugins = [
       '../plugins/userConfig',
     ].map((pluginPath) => {
@@ -74,31 +96,18 @@ module.exports = class Context {
       };
     });
 
+    let customPlugins = [];
+    if (custom.config && custom.config.plugins) {
+      customPlugins = custom.config.plugins.map((pluginInfo) => {
+        return readPlugin(pluginInfo, custom.root);
+      });
+    }
+
     const userPlugins = this.userConfig.plugins.map((pluginInfo) => {
-      let fn = () => {};
-
-      if (!Array.isArray(pluginInfo)) {
-        pluginInfo = [pluginInfo];
-      };
-
-      const pluginPath = pluginInfo[0];
-      const options = pluginInfo[1];
-
-      try {
-        fn = require(require.resolve(pluginPath, { paths: [this.rootDir] }));
-      } catch (err) {
-        log.error(`Fail to load plugin ${pluginPath}`);
-        console.error(err);
-        process.exit(1);
-      }
-
-      return {
-        fn,
-        options
-      };
+      return readPlugin(pluginInfo, this.rootDir);
     });
 
-    return _.concat(builtInPlugins, userPlugins);
+    return _.concat(builtInPlugins, customPlugins, userPlugins);
   }
 
   async runPlugins(config) {
@@ -122,3 +131,27 @@ module.exports = class Context {
     return config;
   }
 };
+
+function readPlugin(pluginInfo, rootPath) {
+  let fn = () => {};
+
+  if (!Array.isArray(pluginInfo)) {
+    pluginInfo = [pluginInfo];
+  };
+
+  const pluginPath = pluginInfo[0];
+  const options = pluginInfo[1];
+
+  try {
+    fn = require(require.resolve(pluginPath, { paths: [rootPath] }));
+  } catch (err) {
+    log.error(`Fail to load plugin ${pluginPath}`);
+    console.error(err);
+    process.exit(1);
+  }
+
+  return {
+    fn,
+    options
+  };
+}

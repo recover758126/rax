@@ -6,6 +6,11 @@
   "bin": {
     "rax-scripts": "bin/rax-scripts.js"
   },
+  "files": [
+    "bin",
+    "src-new"
+  ],
+  "main": "src-new/index",
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/alibaba/rax.git"
@@ -34,6 +39,7 @@
     "@babel/preset-typescript": "^7.3.3",
     "@babel/runtime": "^7.2.0",
     "address": "^1.0.1",
+    "auto-bind": "^2.1.0",
     "autoprefixer": "^9.4.3",
     "babel-core": "^7.0.0-bridge.0",
     "babel-eslint": "10.0.1",

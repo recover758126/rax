@@ -7,7 +7,9 @@ program
   .option('--config <config>', 'use custom config')
   .action((cmd) => {
     dev({
-      config: cmd.config
+      args: {
+        config: cmd.config
+      }
     });
   })
   .parse(process.argv);

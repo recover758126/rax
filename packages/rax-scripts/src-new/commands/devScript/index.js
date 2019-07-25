@@ -5,10 +5,16 @@ const Context = require('../../core/Context');
 
 const apiDev = require('./apiDev');
 
-module.exports = async function(args) {
+module.exports = async function({
+  args,
+  custom,
+  rootDir,
+}) {
   const context = new Context({
     args,
     command: 'dev',
+    custom,
+    rootDir,
   });
 
   const { userConfig } = context;
