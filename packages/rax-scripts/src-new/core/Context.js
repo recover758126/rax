@@ -9,6 +9,7 @@ const PluginAPI = require('./PluginAPI');
 const defaultUserConfig = require('../config/userConfig.default');
 const getDefaultConfig = require('../config/getDefaultConfig');
 
+const PKG_FILE = 'package.json';
 const APP_CONFIG_FILE = 'app.json';
 const USER_CONFIG_FILE = 'build.json';
 
@@ -25,29 +26,31 @@ module.exports = class Context {
     this.commandArgs = args;
     this.rootDir = rootDir;
 
-    // app.json
-    this.appConfig = this.getAppConfig();
-
+    this.chainWebpackFns = [];
+    this.eventHooks = {};
     this.customConfig = custom;
+
     this.userConfig = this.getUserConfig(custom);
+    // get project normal config
+    this.appConfig = this.getProjectConfig(APP_CONFIG_FILE);
+    this.pkg = this.getProjectConfig(PKG_FILE);
+
     this.plugins = this.getPlugins(custom);
   }
 
-  getAppConfig() {
-    const configPath = path.resolve(this.rootDir, APP_CONFIG_FILE);
+  getProjectConfig(fileName) {
+    const configPath = path.resolve(this.rootDir, fileName);
 
-    let appConfig = {};
+    let config = {};
     if (fs.existsSync(configPath)) {
       try {
-        appConfig = fs.readJsonSync(configPath);
+        config = fs.readJsonSync(configPath);
       } catch (err) {
-        console.error(`Fail to load app config file ${configPath}`);
-        console.error(err);
-        process.exit(1);
+        log.info('CONFIG', `Fail to load config file ${configPath}, use default`);
       }
     }
 
-    return appConfig;
+    return config;
   }
 
   getUserConfig(custom) {
@@ -63,8 +66,8 @@ module.exports = class Context {
       try {
         userConfig = fs.readJsonSync(configPath);
       } catch (err) {
-        console.error(`Fail to load config file ${configPath}, use default config instead`);
-        console.error(err);
+        log.info('CONFIG', `Fail to load config file ${configPath}, use default config instead`);
+        log.error(err);
         process.exit(1);
       }
     }
@@ -90,8 +93,10 @@ module.exports = class Context {
   getPlugins(custom) {
     const builtInPlugins = [
       '../plugins/userConfig',
+      '../plugins/api',
     ].map((pluginPath) => {
       return {
+        name: pluginPath,
         fn: require(pluginPath)
       };
     });
@@ -110,10 +115,29 @@ module.exports = class Context {
     return _.concat(builtInPlugins, customPlugins, userPlugins);
   }
 
-  async runPlugins(config) {
+  async applyHook(key, opts = {}) {
+    const hooks = this.eventHooks[key] || [];
+
+    for (const fn of hooks) {
+      await fn(opts);
+    }
+  }
+
+  async runPlugins() {
     for (const pluginInfo of this.plugins) {
       const { fn, options } = pluginInfo;
-      await fn(new PluginAPI(this, config), options);
+      await fn(new PluginAPI(this));
+    }
+  }
+
+  async runChainWebpack(config) {
+    for (const fn of this.chainWebpackFns) {
+      if (_.isFunction(fn)) {
+        const res = await fn(config);
+        if (!_.isUndefined(res)) {
+          this.config = res;
+        }
+      }
     }
   }
 
@@ -126,7 +150,8 @@ module.exports = class Context {
       target,
       context: this
     });
-    await this.runPlugins(config);
+    await this.runPlugins();
+    await this.runChainWebpack(config);
 
     return config;
   }
@@ -139,18 +164,19 @@ function readPlugin(pluginInfo, rootPath) {
     pluginInfo = [pluginInfo];
   };
 
-  const pluginPath = pluginInfo[0];
+  const pluginPath = require.resolve(pluginInfo[0], { paths: [rootPath] });
   const options = pluginInfo[1];
 
   try {
-    fn = require(require.resolve(pluginPath, { paths: [rootPath] }));
+    fn = require(pluginPath);
   } catch (err) {
     log.error(`Fail to load plugin ${pluginPath}`);
-    console.error(err);
+    log.error(err);
     process.exit(1);
   }
 
   return {
+    name: pluginPath,
     fn,
     options
   };

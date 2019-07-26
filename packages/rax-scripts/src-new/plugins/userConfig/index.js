@@ -1,23 +1,23 @@
 const _ = require('lodash');
-const chalk = require('chalk');
-const log = require('../../utils/log');
 
 const supportConfig = [
   'outputDir'
 ];
 
 module.exports = (api) => {
-  const { userConfig = {} } = api.context;
+  const { context, log } = api;
+  const { userConfig } = context;
 
   _.forEach(userConfig, (value, key) => {
-    if (_.includes(key)) {
+    if (_.includes(supportConfig, key)) {
       try {
         // load config plugin
         const configPlugin = require(`./configs/${key}`);
         configPlugin(api, value);
       } catch (e) {
         log.error(e);
-        log.error(`Config '${chalk.bold(key)}' is not found`);
+        log.error(`Config file plugins/userConfig/configs/${key} load error`);
+        process.exit(1);
       }
     }
   });

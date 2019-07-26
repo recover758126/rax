@@ -2,10 +2,8 @@ const fs = require('fs-extra');
 const babel = require('gulp-babel');
 const ts = require('gulp-typescript');
 
-const log = require('../../utils/log');
-
 const filePattern = require('./filePattern');
-const babelConfig = require('../babel.config');
+const babelConfig = require('../../config/babel.config');
 
 const {
   JS_FILES_PATTERN,
@@ -14,16 +12,9 @@ const {
   IGNORE_PATTERN
 } = filePattern;
 
-module.exports = (gulp, context) => {
+module.exports = (context, log, gulp) => {
   const { userConfig } = context;
   const { outputDir } = userConfig;
-
-  gulp.task('__clean', (done) => {
-    log.info('清理文件夹');
-    fs.removeSync(outputDir);
-    log.info('清理文件夹完成');
-    done();
-  });
 
   gulp.task('__compileJs', () => {
     log.info('编译JS文件');

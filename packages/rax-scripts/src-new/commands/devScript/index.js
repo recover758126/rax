@@ -3,8 +3,6 @@ const chalk = require('chalk');
 
 const Context = require('../../core/Context');
 
-const apiDev = require('./apiDev');
-
 module.exports = async function({
   args,
   custom,
@@ -17,19 +15,23 @@ module.exports = async function({
     rootDir,
   });
 
-  const { userConfig } = context;
-  const { type, targets } = userConfig;
+  const { userConfig, applyHook } = context;
+  const { type, targets, outputDir } = userConfig;
+
+  // clean build
+  fs.removeSync(outputDir);
+
+  await applyHook('beforeDev');
 
   if (type === 'app') {
     for (const target of targets) {
       const config = await context.getConfig(target);
-
-      console.log(config);
     }
   }
 
   if (type === 'api') {
     const config = await context.getConfig();
-    apiDev(config);
   }
+
+  await applyHook('afterDev');
 };

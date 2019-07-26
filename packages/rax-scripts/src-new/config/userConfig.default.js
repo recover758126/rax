@@ -1,9 +1,8 @@
 'use strict';
 
 module.exports = {
-  type: 'api',
-  targets: ['web'],
-  entry: 'src/index',
+  type: 'app',
+  entry: 'src/index.js',
   outputDir: 'build',
 
   plugins: [],
